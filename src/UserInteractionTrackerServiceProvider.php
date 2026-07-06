@@ -51,8 +51,9 @@ class UserInteractionTrackerServiceProvider extends ServiceProvider
 
         // Schedule the digest (opt-out via config).
         if (config('user-interaction-tracker.schedule.enabled', true)) {
+            $cron = (string) (config('user-interaction-tracker.schedule.cron') ?? '0 8,10,12,14,16,18,20,22 * * *');
             $schedule->command(SendInteractionSummary::class)
-                ->cron(config('user-interaction-tracker.schedule.cron'))
+                ->cron($cron)
                 ->name('interactions-summary')
                 ->withoutOverlapping()
                 ->appendOutputTo(storage_path('logs/interaction-summary-output.log'));

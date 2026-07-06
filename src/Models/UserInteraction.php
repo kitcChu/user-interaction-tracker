@@ -20,7 +20,7 @@ class UserInteraction extends Model
         'is_bot'        => 'boolean',
     ];
 
-    public static function setTableName(string $name): void
+    public static function setTableName(?string $name): void
     {
         static::$customTable = $name;
     }
