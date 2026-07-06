@@ -1,0 +1,43 @@
+{
+    "name": "kitcchu/user-interaction-tracker",
+    "description": "Real-time pre-submission user interaction & form-input tracking for Laravel, with GeoIP, bot filtering and a periodic Telegram digest.",
+    "keywords": ["laravel", "analytics", "telegram", "geoip", "tracking", "lead-recovery", "abandoned-form"],
+    "license": "MIT",
+    "type": "library",
+    "authors": [
+        {
+            "name": "kitcChu"
+        }
+    ],
+    "require": {
+        "php": "^8.1",
+        "illuminate/support": "^10.0|^11.0",
+        "illuminate/http": "^10.0|^11.0",
+        "illuminate/database": "^10.0|^11.0",
+        "illuminate/console": "^10.0|^11.0",
+        "illuminate/filesystem": "^10.0|^11.0",
+        "geoip2/geoip2": "^2.13"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^8.0|^9.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Kitcchu\\UserInteractionTracker\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Kitcchu\\UserInteractionTracker\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Kitcchu\\UserInteractionTracker\\UserInteractionTrackerServiceProvider"
+            ]
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
