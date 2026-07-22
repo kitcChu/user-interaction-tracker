@@ -21,6 +21,16 @@
 
     var ENDPOINT = window.UIT_ENDPOINT || '/api/track-interaction';
     var FORM_SELECTOR = 'form.exportEnquiryForm, form.uit-track, form#exportEnquiryForm';
+    // Patterns injected by the Blade directive (window.UIT_LINK_PATTERNS = {label:[subs]}).
+    // Defaults cover the common social/messaging links.
+    var LINK_PATTERNS = window.UIT_LINK_PATTERNS || {
+        'WhatsApp': ['wa.me', 'api.whatsapp.com', 'web.whatsapp.com', 'whatsapp.com'],
+        'Facebook': ['facebook.com', 'fb.com', 'fb.me/', 'm.me/'],
+        'Instagram': ['instagram.com'],
+        'Telegram': ['t.me/'],
+        'Phone': ['tel:'],
+        'Email': ['mailto:'],
+    };
     var SNAPSHOT_DEBOUNCE_MS = 1500;
     var IDLE_FLUSH_MS = 4000;
 
@@ -64,6 +74,36 @@
             url: location.href,
         };
     }
+
+    // ---- External link-click tracking (delegated, document-level) ----
+    // Matches any <a> whose href contains a configured pattern. Fires a
+    // `link_click` event (sendBeacon so it survives same-tab navigation).
+    function matchLinkType(href) {
+        if (!href) return null;
+        var h = href.toLowerCase();
+        for (var label in LINK_PATTERNS) {
+            if (!Object.prototype.hasOwnProperty.call(LINK_PATTERNS, label)) continue;
+            var subs = LINK_PATTERNS[label] || [];
+            for (var i = 0; i < subs.length; i++) {
+                if (h.indexOf(subs[i].toLowerCase()) !== -1) return label;
+            }
+        }
+        return null;
+    }
+
+    document.addEventListener('click', function (e) {
+        var node = e.target;
+        while (node && node.nodeType === 1 && node.tagName !== 'A') node = node.parentNode;
+        if (!node || node.tagName !== 'A') return;
+        var type = matchLinkType(node.href);
+        if (!type) return;
+        send(Object.assign({}, meta(), {
+            event: 'link_click',
+            link_type: type,
+            link_text: (node.textContent || node.getAttribute('aria-label') || '').trim().slice(0, 100),
+            link_url: node.href,
+        }), true);  // beacon — survives navigation / new-tab
+    }, true);
 
     function collectFields(form) {
         var out = {};

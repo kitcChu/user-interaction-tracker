@@ -88,6 +88,10 @@ return [
             'email'                  => '電郵 / Email',
             'service_plan'           => '服務計劃 / Service Plan',
             'service_plan_id'        => '服務計劃 / Service Plan',
+            // link_click events
+            'link_type'              => '連結類型 / Link',
+            'link_text'              => '連結文字 / Text',
+            'link_url'               => '網址 / URL',
             'schedule'               => '預約時間 / Schedule',
             'pickup_date'            => '上門日期 / Pickup Date',
             'pickup_time_slot'       => '上門時段 / Pickup Time',
@@ -116,6 +120,20 @@ return [
     'schedule' => [
         'enabled' => env('UIT_SCHEDULE_ENABLED', true),
         'cron'    => env('UIT_SCHEDULE_CRON', '0 8,10,12,14,16,18,20,22 * * *'),
+    ],
+
+    /*
+     | External link-click tracking. Keys are human labels, values are URL
+     | substrings (matched anywhere in the href, case-insensitive). Clicks on
+     | matching links fire a `link_click` event. Add/remove freely.
+     */
+    'link_clicks' => [
+        'WhatsApp' => ['wa.me', 'api.whatsapp.com', 'web.whatsapp.com', 'whatsapp.com'],
+        'Facebook' => ['facebook.com', 'fb.com', 'fb.me/', 'm.me/'],
+        'Instagram' => ['instagram.com'],
+        'Telegram' => ['t.me/'],
+        'Phone'     => ['tel:'],
+        'Email'     => ['mailto:'],
     ],
 
     /*

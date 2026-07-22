@@ -37,6 +37,7 @@ class InteractionFormatter
             'form_abandoned'  => ['🚪', '離開未提交'],
             'step_change'     => ['👣', '進入下一步'],
             'order_submitted' => ['🎉', '訂單已提交'],
+            'link_click'      => ['🔗', '點擊連結'],
             default           => ['ℹ️', '互動'],
         };
     }
@@ -127,7 +128,7 @@ class InteractionFormatter
     private function countHighlights(Collection $rows): int
     {
         return $rows->filter(function ($r) {
-            if ($r->event === 'order_submitted') {
+            if (in_array($r->event, ['order_submitted', 'link_click'], true)) {
                 return true;
             }
             return $r->event === 'form_abandoned' && !empty($r->fields);

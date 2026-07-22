@@ -24,7 +24,7 @@ class UserInteractionController extends Controller
     public function track(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'event'        => ['required', 'string', 'in:page_view,form_opened,field_focus,input_snapshot,form_abandoned,step_change,order_submitted'],
+            'event'        => ['required', 'string', 'in:page_view,form_opened,field_focus,input_snapshot,form_abandoned,step_change,order_submitted,link_click'],
             'session_id'   => ['required', 'string', 'max:64'],
             'page_id'      => ['nullable', 'integer'],
             'page_title'   => ['nullable', 'string', 'max:255'],
@@ -34,11 +34,33 @@ class UserInteractionController extends Controller
             'focus_field'  => ['nullable', 'string', 'max:100'],
             'current_step' => ['nullable', 'integer', 'min:1', 'max:50'],
             'note'         => ['nullable', 'string', 'max:255'],
+            'link_type'    => ['nullable', 'string', 'max:50'],
+            'link_text'    => ['nullable', 'string', 'max:100'],
+            'link_url'     => ['nullable', 'string', 'max:500'],
         ]);
 
         // Persist every event (real + bot) for analytics. Bots are flagged via
         // is_bot and excluded from the scheduled digest.
         $record = $this->persist($data['event'], $data, $request);
+
+        // For link_click events, surface the link info in the standard `fields`
+        // bucket so the digest renders it consistently.
+        if ($data['event'] === 'link_click') {
+            $extra = array_filter([
+                'link_type' => $data['link_type'] ?? null,
+                'link_text' => $data['link_text'] ?? null,
+                'link_url'  => $data['link_url'] ?? null,
+            ], fn ($v) => is_string($v) && trim($v) !== '');
+            if ($extra && is_array($record->fields)) {
+                $record->fields = array_merge($record->fields, $extra);
+            } elseif ($extra) {
+                $record->fields = $extra;
+            }
+            // Save without touching timestamps noise; keep id stable.
+            if ($extra) {
+                $record->saveQuietly();
+            }
+        }
 
         $bot = (bool) $record->is_bot;
 
