@@ -6,8 +6,10 @@ of real (non-bot) activity to a Telegram group — so your team can see what
 prospects are doing *before* they finally submit (or abandon).
 
 - ✅ Two form types: single-shot HTML inquiry forms **and** multi-step Vue forms
+- ✅ **Exhaustive field capture** — iterates `form.elements`, so radios (selected value) and checkbox arrays aggregate correctly; works for any form without a whitelist
+- ✅ **External link-click tracking** — WhatsApp/Facebook/social/phone/email links, auto-detected anywhere on the page
 - ✅ GeoIP location (local MaxMind GeoLite2 DB, ip-api.com fallback)
-- ✅ Bot / LAN / IP-subnet blocklist filtering
+- ✅ Bot / LAN / IP-subnet blocklist filtering (CIDR-aware)
 - ✅ 2-hourly Telegram digest (configurable cron), grouped by visitor session
 - ✅ Full audit logs (scheduler, command output, sent digests)
 - ✅ Security-first: the bot token never reaches the browser
@@ -138,8 +140,31 @@ options:
 | `filter.exclude_ips` | IP/CIDR blocklist | `EXCLUDE_IPS` |
 | `filter.bot_tokens` | Crawler UA tokens | — |
 | `labels.fields` | Field → display label | — |
+| `link_clicks` | Map of link type → URL substrings to track as `link_click` | — |
 | `schedule.cron` | Digest cron expression | `UIT_SCHEDULE_CRON` |
 | `table` | DB table name | `UIT_TABLE` |
+
+### Link-click tracking
+
+A delegated, document-level click listener fires a `link_click` event for any
+`<a>` whose `href` matches a configured pattern. Works anywhere on the page
+(header, footer, DB content). Sent via `sendBeacon` so it survives navigation.
+
+Configure which links to track in `config/user-interaction-tracker.php`:
+
+```php
+'link_clicks' => [
+    'WhatsApp' => ['wa.me', 'api.whatsapp.com', 'whatsapp.com'],
+    'Facebook' => ['facebook.com', 'fb.com', 'm.me/'],
+    'Phone'    => ['tel:'],
+    // …add freely
+],
+```
+
+(On sites using the Blade directive, the patterns are injected via
+`window.UIT_LINK_PATTERNS`; the bundled `tracker.js` reads them. On sites
+using the published JS directly, set `window.UIT_LINK_PATTERNS` yourself or
+rely on the built-in defaults.)
 
 ---
 
