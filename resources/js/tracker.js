@@ -106,15 +106,37 @@
     }, true);
 
     function collectFields(form) {
+        // Iterate ALL form elements so any form (incl. radios + checkbox arrays)
+        // is captured. Honeypots/internals skipped. Multi-value fields aggregated.
         var out = {};
+        var arrayAccum = {};
         Array.prototype.forEach.call(form.elements, function (el) {
             var name = el.name;
-            if (!name || name.charAt(0) === '_' || name === 'country' || name === 'date' || name === 'password') return;
-            var v;
-            if (el.type === 'checkbox') v = el.checked ? 'yes' : '';
-            else v = (el.value || '').trim();
-            if (v) out[name] = String(v).slice(0, 500);
+            if (!name) return;
+            if (name === '_token' || name === 'country' || name === 'date' || name === 'password') return;
+            if (el.type === 'radio') {
+                if (el.checked) out[name] = String(el.value).trim().slice(0, 500);
+                return;
+            }
+            if (el.type === 'checkbox') {
+                var key = name.replace(/\[\]$/, '');
+                if (el.checked) {
+                    if (name.indexOf('[]', name.length - 2) !== -1) {
+                        (arrayAccum[key] = arrayAccum[key] || []).push(String(el.value).trim());
+                    } else {
+                        out[key] = 'yes';
+                    }
+                }
+                return;
+            }
+            var v = (el.value || '').trim();
+            if (v && !out[name]) out[name] = String(v).slice(0, 500);
         });
+        for (var k in arrayAccum) {
+            if (Object.prototype.hasOwnProperty.call(arrayAccum, k)) {
+                out[k] = arrayAccum[k].join(', ').slice(0, 500);
+            }
+        }
         return out;
     }
 
@@ -143,8 +165,8 @@
 
         form.addEventListener('focusin', function (e) {
             var name = e.target && e.target.name;
-            if (!name) return;
-            send(Object.assign({}, meta(), { event: 'field_focus', focus_field: name }));
+            if (!name || name === '_token' || name === 'country' || name === 'date') return;
+            send(Object.assign({}, meta(), { event: 'field_focus', focus_field: name.replace(/\[\]$/, '') }));
         });
 
         var schedule = function () {

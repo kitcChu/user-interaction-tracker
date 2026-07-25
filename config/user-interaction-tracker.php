@@ -93,6 +93,13 @@ return [
             'link_text'              => '連結文字 / Text',
             'link_url'               => '網址 / URL',
             'schedule'               => '預約時間 / Schedule',
+            // English marketing forms (rate / services / lite)
+            'form_type'              => '表單類型 / Form',
+            'origin'                 => '出發地 / Origin',
+            'destination'            => '目的地 / Destination',
+            'moving_month'           => '搬遷月份 / Moving Month',
+            'shipment_size'          => '貨物體積 / Shipment Size',
+            'services_requested'     => '要求服務 / Services Requested',
             'pickup_date'            => '上門日期 / Pickup Date',
             'pickup_time_slot'       => '上門時段 / Pickup Time',
             'material_delivery_date' => '送料日期 / Material Delivery Date',
