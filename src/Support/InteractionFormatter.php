@@ -42,7 +42,48 @@ class InteractionFormatter
         };
     }
 
-    public function summary(Collection $rows, string $windowLabel): string
+    /**
+     * Render rows into one or more HTML-balanced Telegram messages.
+     *
+     * Long digests are split at session-block boundaries (every block is
+     * self-contained HTML) so NO message is ever truncated mid-tag — that was
+     * the bug that made Telegram reject large digests with
+     * "can't parse entities: Unclosed end tag".
+     *
+     * @return list<string> One message per chunk, each <4096 chars & balanced.
+     */
+    public function summary(Collection $rows, string $windowLabel): array
+    {
+        $footer = "\n────────────────\n<i>🔁 自動摘要 / auto digest</i>";
+        $sep = "\n────────────────\n";
+
+        $max = 3500;                                  // chars, safely < Telegram's 4096
+        $budget = $max - mb_strlen($footer);
+
+        $chunks = [];
+        $current = $this->buildHeader($rows, $windowLabel);
+        $part = 1;
+
+        foreach ($rows->groupBy('session_id') as $sid => $sessionRows) {
+            $block = $this->renderSessionBlock((string) $sid, $sessionRows);
+
+            // Start a new chunk if adding this block would overflow.
+            if ($current !== $this->buildHeader($rows, $windowLabel)
+                && mb_strlen($current) + mb_strlen($sep) + mb_strlen($block) > $budget
+            ) {
+                $chunks[] = $current . $footer;
+                $part++;
+                $current = "📊 <b>用戶互動摘要 (續 {$part} / cont'd)</b>\n";
+            }
+
+            $current .= $sep . $block;
+        }
+        $chunks[] = $current . $footer;
+
+        return $chunks;
+    }
+
+    private function buildHeader(Collection $rows, string $windowLabel): string
     {
         $total = $rows->count();
         $sessions = $rows->pluck('session_id')->unique()->count();
@@ -54,20 +95,7 @@ class InteractionFormatter
         if ($highlights > 0) {
             $msg .= " · ⚡ {$highlights} 高價值 / high-value";
         }
-        $msg .= "\n";
-
-        foreach ($rows->groupBy('session_id') as $sid => $sessionRows) {
-            $msg .= "\n────────────────\n";
-            $msg .= $this->renderSessionBlock((string) $sid, $sessionRows);
-        }
-
-        $msg .= "\n────────────────\n";
-        $msg .= "<i>🔁 自動摘要 / auto digest</i>";
-
-        if (mb_strlen($msg) > 3900) {
-            $msg = mb_substr($msg, 0, 3850) . "\n…<i>(截斷 / truncated)</i>";
-        }
-        return $msg;
+        return $msg . "\n";
     }
 
     private function renderSessionBlock(string $sid, Collection $rows): string
@@ -84,6 +112,8 @@ class InteractionFormatter
         $out .= "{$flag} {$this->esc($loc)} · 🌐 {$this->esc($ip)}\n";
         $out .= "📄 {$this->esc($title)}\n";
 
+        // Cap a single session block so it can never blow the per-message budget.
+        $blockMax = 2000;
         foreach ($rows as $r) {
             [$emoji, $label] = $this->eventMeta($r->event);
             $time = $r->created_at ? $r->created_at->format('H:i:s') : '';
@@ -94,10 +124,15 @@ class InteractionFormatter
             if ($r->focus_field) {
                 $line .= " · {$this->esc($r->focus_field)}";
             }
-            $out .= "{$line}\n";
+            $candidate = $out . "{$line}\n";
             if (!empty($r->fields)) {
-                $out .= $this->renderFieldsInline($r->fields);
+                $candidate .= $this->renderFieldsInline($r->fields);
             }
+            if (mb_strlen($candidate) > $blockMax) {
+                $out .= "   …(更多事件省略 / more events omitted)\n";
+                break;
+            }
+            $out = $candidate;
         }
         return $out;
     }

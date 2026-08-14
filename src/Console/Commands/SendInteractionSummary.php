@@ -54,20 +54,31 @@ class SendInteractionSummary extends Command
             now()->format('Y-m-d H:i')
         );
 
-        $message = $fmt->summary($rows, $windowLabel);
+        $messages = $fmt->summary($rows, $windowLabel);
 
-        $this->logDigest($rows, $message);
+        $this->logDigest($rows, $messages);
 
         if ($dry) {
-            $this->line("Would send {$rows->count()} interaction(s) (ids: " . implode(',', $ids) . "):");
-            $this->line($message);
+            $this->line("Would send {$rows->count()} interaction(s) (ids: " . implode(',', $ids) . ") in " . count($messages) . ' message(s):');
+            foreach ($messages as $i => $m) {
+                $this->line("--- message " . ($i + 1) . ' (' . mb_strlen($m) . " chars) ---");
+                $this->line($m);
+            }
             return self::SUCCESS;
         }
 
-        $sent = $this->sendToTelegram($message, $cfg);
+        // Send every chunk; only mark rows summarized if ALL succeed (avoids
+        // silent data loss; a partial failure leaves rows pending for retry).
+        $allSent = true;
+        foreach ($messages as $i => $message) {
+            if (!$this->sendToTelegram($message, $cfg)) {
+                $allSent = false;
+                $this->error("Telegram send failed on message " . ($i + 1) . '/' . count($messages) . '; rows will be retried next run.');
+                break;
+            }
+        }
 
-        if (!$sent) {
-            $this->error('Telegram send failed; rows will be retried next run.');
+        if (!$allSent) {
             return self::FAILURE;
         }
 
@@ -76,7 +87,7 @@ class SendInteractionSummary extends Command
             'telegram_sent' => true,
         ]);
 
-        $this->info("Summary sent ({$rows->count()} interaction(s)).");
+        $this->info("Summary sent ({$rows->count()} interaction(s) in " . count($messages) . ' message(s)).');
         return self::SUCCESS;
     }
 
@@ -130,16 +141,20 @@ class SendInteractionSummary extends Command
      * Best-effort audit log. Any failure is swallowed so it can never block
      * the Telegram send.
      */
-    private function logDigest($rows, string $message): void
+    private function logDigest($rows, array $messages): void
     {
-        $plain = strip_tags($message);
         $header = sprintf(
-            "[%s] digest sent — %d interaction(s), ids: %s\n",
+            "[%s] digest sent — %d interaction(s), ids: %s, %d message(s)\n",
             now()->toDateTimeString(),
             $rows->count(),
-            implode(',', $rows->modelKeys())
+            implode(',', $rows->modelKeys()),
+            count($messages)
         );
-        $entry = $header . $plain . "\n" . str_repeat('—', 60) . "\n\n";
+        $entry = $header;
+        foreach ($messages as $m) {
+            $entry .= strip_tags($m) . "\n" . str_repeat('—', 60) . "\n";
+        }
+        $entry .= "\n";
 
         try {
             file_put_contents(storage_path('logs/interaction-digests.log'), $entry, FILE_APPEND | LOCK_EX);
