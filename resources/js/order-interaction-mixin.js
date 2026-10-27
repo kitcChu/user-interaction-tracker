@@ -94,9 +94,9 @@ export default {
             }
             if (o.pickup_date) out.pickup_date = String(o.pickup_date);
             if (o.pickup_time_slot) out.pickup_time_slot = String(o.pickup_time_slot);
-            if (Array.isArray(o.packaging_materials) && o.packaging_materials.length) out.packaging_materials = this.__summarize(o.packaging_materials);
-            if (Array.isArray(o.storage_items) && o.storage_items.length) out.storage_items = this.__summarize(o.storage_items);
-            if (Array.isArray(o.special_services) && o.special_services.length) out.special_services = this.__summarize(o.special_services);
+            if (Array.isArray(o.packaging_materials) && o.packaging_materials.length) { const s = this.__summarize(o.packaging_materials); if (s) out.packaging_materials = s; }
+            if (Array.isArray(o.storage_items) && o.storage_items.length) { const s = this.__summarize(o.storage_items); if (s) out.storage_items = s; }
+            if (Array.isArray(o.special_services) && o.special_services.length) { const s = this.__summarize(o.special_services); if (s) out.special_services = s; }
             if (o.special_instructions && String(o.special_instructions).trim()) out.special_instructions = String(o.special_instructions).trim().slice(0, 200);
             if (o.referral_source && String(o.referral_source).trim()) out.referral_source = String(o.referral_source).trim();
             if (o.total_price != null && Number(o.total_price) > 0) out.total_price = '$' + Number(o.total_price).toFixed(2);
@@ -105,11 +105,20 @@ export default {
         },
 
         __summarize(items) {
-            return items.map(i => {
-                const name = i.name || i.title || i.label || i.id || 'item';
-                const qty = i.quantity ?? i.qty ?? null;
-                return qty != null ? `${name} x${qty}` : String(name);
-            }).join(', ').slice(0, 200);
+            // Exclude items with quantity 0 (not selected); keep qty-less items.
+            // Returns '' when nothing is selected.
+            return items
+                .filter((i) => {
+                    const q = i.quantity ?? i.qty ?? null;
+                    return q == null || Number(q) > 0;
+                })
+                .map((i) => {
+                    const name = i.name || i.title || i.label || i.id || 'item';
+                    const qty = i.quantity ?? i.qty ?? null;
+                    return qty != null ? `${name} x${qty}` : String(name);
+                })
+                .join(', ')
+                .slice(0, 200);
         },
 
         __send(payload, opts = {}) {
